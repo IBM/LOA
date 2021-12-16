@@ -3,23 +3,20 @@ import sys
 
 import torch.nn as nn
 
-try:
-    DDLNN_HOME = os.environ['DDLNN_HOME']
-except BaseException:
-    DDLNN_HOME = os.path.expanduser('third_party/dd_lnn')
-
-meta_rule_home = '{}/src/meta_rule/'.format(DDLNN_HOME)
-src_rule_home = '{}/dd_lnn/'.format(DDLNN_HOME)
-
-sys.path.append(meta_rule_home)
-sys.path.append(src_rule_home)
-
-EPS = 1e-10
-
 if True:
+    DDLNN_HOME = os.environ['DDLNN_HOME']
+
+    meta_rule_home = '{}/src/meta_rule/'.format(DDLNN_HOME)
+    src_rule_home = '{}/dd_lnn/'.format(DDLNN_HOME)
+
+    sys.path.append(meta_rule_home)
+    sys.path.append(src_rule_home)
+
     from lnn_operators \
         import and_lukasiewicz, \
         and_lukasiewicz_unconstrained, and_lukasiewicz_lambda
+
+EPS = 1e-10
 
 
 class SimpleAndLNN(nn.Module):

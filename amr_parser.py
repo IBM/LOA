@@ -52,8 +52,7 @@ def get_verbnet_preds_from_obslist(obslist,
                                    sem_parser_mode='both',
                                    difficulty='easy'):
     rest_amr = AMRSemParser(amr_server_ip=amr_server_ip,
-                            amr_server_port=amr_server_port,
-                            gametype=difficulty)
+                            amr_server_port=amr_server_port)
     all_preds = []
     verbnet_facts_logs = {}
     for obs_text in tqdm(obslist):
@@ -110,8 +109,10 @@ def remove_article(s):
 
 
 class AMRSemParser:
-    def __init__(self, amr_server_ip='localhost', amr_server_port=None,
-                 gametype='easy', use_amr_cal_str=False,
+    def __init__(self,
+                 amr_server_ip='localhost',
+                 amr_server_port=None,
+                 use_amr_cal_str=False,
                  cache_folder='./cache/'):
         self.use_amr_cal_str = use_amr_cal_str
         if amr_server_port is None:
@@ -476,12 +477,11 @@ class AMRSemParser:
                         final_facts[k] = v
 
             if verbose:
-                print('##' * 30)
                 print('Text: ', text_sub)
                 print('AMR Sem Cal: \n',
                       ret[self.json_key][cnt]['amr_cal_str'])
                 print('Facts: \n', facts_filtered)
-                print('##' * 30)
+                print('#' * 50)
 
             final_arity = {**arity, **final_arity}
 

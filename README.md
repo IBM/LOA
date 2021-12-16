@@ -14,7 +14,7 @@ cd loa
 
 # Setup games
 git clone git@github.com:IBM/commonsense-rl.git 
-cp commonsense-rl/games ./
+cp -r commonsense-rl/games ./
 rm -rf commonsense-rl
 
 

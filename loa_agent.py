@@ -4,26 +4,31 @@ import random
 
 import numpy as np
 
+import torch
 import torch.nn as nn
 import torch.optim as optim
 from amr_parser import (AMRSemParser, get_formatted_obs_text,
                         get_verbnet_preds_from_obslist)
-from logical_twc import EPS, Action2Literal, LogicalTWC, DEFALT_TWC_HOME
-from policies import PolicyLNNTWC_SingleAnd
+from logical_twc import DEFALT_TWC_HOME, EPS, Action2Literal, LogicalTWC
 from tqdm import tqdm
-from utils import *
+from utils import (combine_cs_facts, get_facts_state,
+                   ground_predicate_instantiate,
+                   obtain_predicates_logic_vector)
 
-try:
-    _ = os.environ['TWC_HOME']
-except KeyError:
-    print('Could not find TWC_HOME. Using default path...')
-    os.environ['TWC_HOME'] = DEFALT_TWC_HOME
+if True:
+    try:
+        _ = os.environ['TWC_HOME']
+    except KeyError:
+        print('Could not find TWC_HOME. Using default path...')
+        os.environ['TWC_HOME'] = DEFALT_TWC_HOME
 
-try:
-    _ = os.environ['DDLNN_HOME']
-except KeyError:
-    print('Could not find DDLNN_HOME. Using default path...')
-    os.environ['DDLNN_HOME'] = 'third_party/dd_lnn/'
+    try:
+        _ = os.environ['DDLNN_HOME']
+    except KeyError:
+        print('Could not find DDLNN_HOME. Using default path...')
+        os.environ['DDLNN_HOME'] = 'third_party/dd_lnn/'
+
+    from policies import PolicyLNNTWC_SingleAnd
 
 
 class LogicalTWCQuantifier(LogicalTWC):
@@ -43,9 +48,10 @@ class LOAAgent:
 
     def __init__(self,
                  admissible_verbs,
-                 amr_server_ip,
-                 amr_server_port,
-                 prune_by_state_change=False, sem_parser_mode='both'):
+                 amr_server_ip='localhost',
+                 amr_server_port=None,
+                 prune_by_state_change=False,
+                 sem_parser_mode='both'):
         if admissible_verbs is None:
             self.admissible_verbs = {}
         else:
@@ -174,7 +180,7 @@ class LOAAgent:
         if save_trajectories:
             save_file = \
                 './results/state_action_graph/trajs_{}_prune_{}.pkl'. \
-                    format(difficulty_level, action_verb_to_prune)
+                format(difficulty_level, action_verb_to_prune)
             with open(save_file, 'wb') as fp:
                 pickle.dump(trajs, fp)
 
@@ -501,8 +507,7 @@ class LOAAgent:
                     verbose=False,
                     num_games=5):
         rest_amr = AMRSemParser(amr_server_ip=self.amr_server_ip,
-                                amr_server_port=self.amr_server_port,
-                                gametype=difficulty_level)
+                                amr_server_port=self.amr_server_port)
         adm_verbs = self.admissible_verbs
         self.pi.eval()
         total_score = 0.
