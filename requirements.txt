@@ -3,4 +3,3 @@ numpy==1.21.1
 textworld==1.2.0
 tqdm==4.50.2
 requests==2.26.0
-pycddlib==2.1.4

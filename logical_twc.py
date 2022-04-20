@@ -81,9 +81,6 @@ def load_twc_game(difficulty_level,
         glob.glob('{}/{}/{}/manual_subgraph_brief/*.tsv'.
                   format(twc_path, difficulty_level, split))
 
-    game_file_names = sorted(game_file_names)
-    tsv_file_names = sorted(tsv_file_names)
-
     if game_no is not None:
         game_file_names = game_file_names[game_no]
         hash_id = game_file_names.split('-')[-1].split('.')[0]

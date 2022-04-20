@@ -25,19 +25,13 @@ conda install pytorch=1.10.0 torchvision torchaudio nltk=3.6.3 -c pytorch
 pip install -r requirements.txt
 python -m spacy download en
 
-
-# Setup AMR Server: please follow (1) or (2) steps
-
-# (1) From the latest source code.
-cd third_party
-git clone https://github.com/IBM/AMR-CSLogic.git amr-cslogic
-cd amr-cslogic
-# Execute installation scripts in INSTALLATION.md
+cd third_party/amr-cslogic
+# Execute installation scripts in INSTALLATION.md for seting up AMR-CSLogic
 export FLASK_APP=./amr_verbnet_semantics/web_app/__init__.py
 python -m flask run --host=0.0.0.0 --port 5000 &
 cd ../../
 
-# (2) If you don't want to run the server (only working for known sentences.)
+# If you don't want to run the server
 mkdir -p cache
 wget -O cache/amr_cache.pkl https://ibm.box.com/shared/static/klsvx54skc5wlf35qg3klo35ex25dbb0.pkl
 # Note: This cache only contains sentences for "easy" game which is default in train.py

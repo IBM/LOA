@@ -1,0 +1,6 @@
+[submodule "third_party/tensorlnn"]
+	path = third_party/tensorlnn
+	url = git@github.com:IBM/TensorLNN.git
+[submodule "third_party/amr-cslogic"]
+	path = third_party/amr-cslogic
+	url = git@github.com:IBM/AMR-CSLogic.git

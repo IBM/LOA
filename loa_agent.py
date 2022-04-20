@@ -638,7 +638,6 @@ class LOAAgent:
                 mincount=mincount,
                 verbose=verbose,
                 sem_parser_mode=self.sem_parser_mode,
-                difficulty=difficulty_level
             )
         self.get_string_templates(all_train_preds)
         self.obtain_templates()

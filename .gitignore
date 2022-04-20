@@ -1,7 +1,6 @@
 games/
 cache/
 results/
-third_party/amr-cslogic/
 
 # User-specific stuff
 .idea/**/workspace.xml

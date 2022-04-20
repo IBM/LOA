@@ -4,8 +4,8 @@ import random
 import time
 
 import numpy as np
-
 import torch
+
 from loa_agent import LOAAgent
 
 parser = argparse.ArgumentParser(description='Train LOA')
@@ -41,14 +41,24 @@ parser.add_argument('--seed', type=int, default=1,
 parser.add_argument('--k_subgoal', type=int,
                     default=6, help='Number of actions to prune')
 
+default_amr_server_ip = 'localhost'
 parser.add_argument('--amr_server_ip', type=str,
-                    default='localhost', help='IP for AMR server')
+                    default=default_amr_server_ip, help='IP for AMR server')
 
+default_amr_server_port = 0
 parser.add_argument('--amr_server_port', type=int,
-                    default=None, help='Port number for AMR server')
+                    default=default_amr_server_port,
+                    help='Port number for AMR server')
 
 
 args = parser.parse_args()
+
+if args.amr_server_ip == default_amr_server_ip:
+    env_amr_server_ip = os.getenv('LOA_AMR_SERVER_IP', default_amr_server_ip)
+
+if args.amr_server_port == default_amr_server_port:
+    env_amr_server_port = os.getenv('LOA_AMR_SERVER_PORT',
+                                    default_amr_server_port)
 
 filename = \
     'loa-twc-dl%s-np%d-nt%d-ps%d' % \

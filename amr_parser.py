@@ -1,4 +1,5 @@
 import ast
+import itertools
 import os
 import pickle
 import re
@@ -49,8 +50,7 @@ def get_verbnet_preds_from_obslist(obslist,
                                    amr_server_ip='localhost',
                                    amr_server_port=None,
                                    mincount=0, verbose=False,
-                                   sem_parser_mode='both',
-                                   difficulty='easy'):
+                                   sem_parser_mode='both'):
     rest_amr = AMRSemParser(amr_server_ip=amr_server_ip,
                             amr_server_port=amr_server_port)
     all_preds = []
@@ -59,7 +59,8 @@ def get_verbnet_preds_from_obslist(obslist,
         verbnet_facts, arity = \
             rest_amr.obs2facts(obs_text,
                                verbose=verbose,
-                               mode=sem_parser_mode)
+                               mode=sem_parser_mode,
+                               force_single_arity=False)
         verbnet_facts_logs[obs_text] = verbnet_facts
         all_preds += list(verbnet_facts.keys())
 
@@ -115,7 +116,7 @@ class AMRSemParser:
                  use_amr_cal_str=False,
                  cache_folder='./cache/'):
         self.use_amr_cal_str = use_amr_cal_str
-        if amr_server_port is None:
+        if amr_server_port == 0 or amr_server_port is None:
             print('AMR is cache only mode')
             self.endpoint = None
         else:
@@ -165,7 +166,6 @@ class AMRSemParser:
                        no_use_zero_arg=True,
                        force_single_arity=True,
                        verbose=True, cnt=None):
-        facts = {}
         amr_text = ret[self.json_key][cnt]['amr']
         if verbose:
             print('Text:')
@@ -202,26 +202,13 @@ class AMRSemParser:
             for k, v in ret[self.json_key][cnt].items():
                 print(k, ':', v)
 
-        pred_args = {}
         pred_values = {}
-        modifiers = {}
         for item in amr_cal_text:
             pred_name = item['predicate']
-            cond = ('-' in pred_name) and ('arg' in pred_name)
 
-            if pred_name.lower() == 'mod':
-                obj, mod = item['arguments']
-                obj = node2surface_mapping[obj]
-                mod = node2surface_mapping[mod]
-
-                if obj not in modifiers:
-                    modifiers[obj] = [mod]
-                else:
-                    modifiers[obj].append(mod)
-
-            if cond:
-                verbnet_frame = '-'.join(
-                    pred_name.split('.')[0].split('-')[:-1])
+            if '-' in pred_name and 'arg' in pred_name:
+                verbnet_frame = \
+                    '-'.join(pred_name.split('.')[0].split('-')[:-1])
                 is_neg = item['is_negative']
                 if is_neg:
                     verbnet_frame = 'not_' + verbnet_frame
@@ -230,50 +217,42 @@ class AMRSemParser:
 
                 arg_no = int(pred_name.split('.')[-1].split('arg')[-1])
 
-                if arg_no == 0 and no_use_zero_arg:
+                if (arg_no == 0 and no_use_zero_arg) \
+                        or verbnet_frame == 'have-mod':
                     continue
 
-                if verbnet_frame not in pred_args:
-                    pred_args[verbnet_frame] = [arg_no]
-                    pred_values[verbnet_frame] = [arg_name]
-                else:
-                    pred_args[verbnet_frame].append(arg_no)
-                    pred_values[verbnet_frame].append(arg_name)
+                if verbnet_frame not in pred_values:
+                    pred_values[verbnet_frame] = dict()
+                if item['arguments'][0] not in pred_values[verbnet_frame]:
+                    pred_values[verbnet_frame][item['arguments'][0]] = dict()
 
-        for verb, args in pred_args.items():
-            verb_vals = pred_values[verb]
-            if verb not in facts:
-                facts[verb] = []
-            prev_x = -999
-            for k, x in enumerate(args):
-                argname = pred_values[verb][k]
-                mod_argname = argname
-                if mod_argname in modifiers:
-                    for mod in modifiers[argname]:
-                        mod_argname = mod + ' ' + mod_argname
-                if x > prev_x and x > 0 and prev_x >= 0:
-                    facts[verb][-1].append(mod_argname)
-                else:
-                    facts[verb].append([mod_argname])
-                prev_x = x
+                if verbose:
+                    if arg_no \
+                            in pred_values[verbnet_frame][item['arguments'][0]]:
+                        print('override (%s, %s, %d): %s -> %s' %
+                              (verbnet_frame, item['arguments'][0], arg_no,
+                               pred_values[verbnet_frame]
+                               [item['arguments'][0]][arg_no], arg_name))
 
+                pred_values[verbnet_frame][item['arguments'][0]][arg_no] = \
+                    arg_name
+
+        facts = {}
         arity = {}
-        for k, v in facts.items():
-            v_tuple = []
-            arity[k] = []
-            for item in v:
-                arity[k].append(len(item))
-                if len(item) > 1:
-                    if force_single_arity:
-                        v_tuple += item
+        for verb, pred_value in pred_values.items():
+            for _, value in pred_value.items():
+                pred_values_list = \
+                    [v[1] for v in sorted(value.items(), key=lambda i: i[0])]
+                if len(pred_values_list) == 1 or \
+                        (len(pred_values_list) > 1 and not force_single_arity):
+                    if verb not in facts:
+                        facts[verb] = []
+                    facts[verb].append(pred_values_list)
+                    if verb in arity and arity[verb] != len(pred_values_list):
+                        arity[verb] = max(arity[verb], len(pred_values_list))
                     else:
-                        v_tuple.append(tuple(item))
-                else:
-                    v_tuple.append(item[0])
-            # v = [tuple(item) for item in v]
-            arity[k] = list(set(arity[k]))
-            v = list(set(v_tuple))
-            facts[k] = v
+                        arity[verb] = len(pred_values_list)
+
         return facts, arity
 
     def verbnet_facts(self, ret,
@@ -413,13 +392,13 @@ class AMRSemParser:
                                         no_use_zero_arg=no_use_zero_arg,
                                         cnt=cnt,
                                         force_single_arity=force_single_arity,
-                                        verbose=False)
+                                        verbose=verbose)
                 verbnet_facts, verbnet_arity_facts = \
                     self.verbnet_facts(ret,
                                        no_use_zero_arg=no_use_zero_arg,
                                        cnt=cnt,
                                        force_single_arity=force_single_arity,
-                                       verbose=False)
+                                       verbose=verbose)
 
                 facts = {**verbnet_facts, **propbank_facts}
                 arity = {**verbnet_arity_facts, **propbank_arity_facts}
@@ -429,7 +408,7 @@ class AMRSemParser:
                                        no_use_zero_arg=no_use_zero_arg,
                                        cnt=cnt,
                                        force_single_arity=force_single_arity,
-                                       verbose=False)
+                                       verbose=verbose)
                 facts = verbnet_facts
                 arity = verbnet_arity_facts
             elif mode == 'propbank':
@@ -439,7 +418,7 @@ class AMRSemParser:
                         no_use_zero_arg=no_use_zero_arg,
                         cnt=cnt,
                         force_single_arity=force_single_arity,
-                        verbose=False)
+                        verbose=verbose)
                 facts = propbank_facts
                 arity = propbank_arity_facts
             elif mode == 'none':
@@ -456,25 +435,20 @@ class AMRSemParser:
                                                          filter_quantifiers,
                                                          quantifer_words)
                 facts_filtered = {}
-                for k, v in facts.items():
-                    v_filtered = [list_nps_dict[item] for item in v if
-                                  item in list_nps_dict]
-                    # if not found in single sentence dict search the full text
-                    # nps mapping
-                    if len(v_filtered) == 0:
-                        v_filtered = [full_list_nps_dict[item] for item in v if
-                                      item in full_list_nps_dict]
-                    if len(v_filtered) > 0:
-                        facts_filtered[k] = v_filtered
+                for kk, vv in facts.items():
+                    for v in vv:
+                        v_filtered = [list_nps_dict[item] for item in v
+                                      if item in list_nps_dict]
+                        if len(v_filtered) == 0:
+                            v_filtered = [full_list_nps_dict[item]
+                                          for item in v
+                                          if item in full_list_nps_dict]
+                        if len(v_filtered) > 0:
+                            if kk not in facts_filtered:
+                                facts_filtered[kk] = list()
+                            facts_filtered[kk].append(v_filtered)
             else:
                 facts_filtered = facts
-
-            for k, v in facts_filtered.items():
-                if not (k.startswith('have-')):
-                    if k in final_facts:
-                        final_facts[k] += v
-                    else:
-                        final_facts[k] = v
 
             if verbose:
                 print('Text: ', text_sub)
@@ -483,13 +457,16 @@ class AMRSemParser:
                 print('Facts: \n', facts_filtered)
                 print('#' * 50)
 
-            final_arity = {**arity, **final_arity}
+            final_facts.update(facts_filtered)
+            final_arity.update(arity)
 
-        for k, v in final_facts.items():
-            all_nouns_adjs = []
-            for phrase in v:
-                all_nouns_adjs += self.get_all_possible_adj_nouns(phrase)
-            all_nouns_adjs = list(set(all_nouns_adjs))
-            final_facts[k] = all_nouns_adjs
+        for k, vs in final_facts.items():
+            final_facts[k] = list()
+            for v in vs:
+                words = list()
+                for word in v:
+                    words.append(self.get_all_possible_adj_nouns(word))
+                for f in itertools.product(*words):
+                    final_facts[k].append(list(f))
 
         return final_facts, final_arity
