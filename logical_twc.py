@@ -197,27 +197,6 @@ class LogicalTWC:
             logical_state += [val, 1 - val]
         return np.array(logical_state)
 
-    def logical_state_admissible(self, infos, admissible_verbs,
-                                 use_global_props=False):
-        adm_comms = []
-        self.admissible_commands = infos['admissible_commands']
-        facts, _ = self.get_logical_state(infos)
-        logical_state_dict = {}
-        for x in self.admissible_commands:
-            cond1 = (x in ['look', 'inventory'])
-            v, n1, n2 = self.action2literal(x)
-            cond2 = (v in admissible_verbs)
-            if not cond1 and cond2:
-                adm_comms.append(x)
-                if n2 in None:
-                    logical_state_dict[x] = \
-                        self.convert2lifted(v, n1, facts, use_global_props)
-                else:
-                    logical_state_dict[x] =\
-                        self.convert2lifted(v, (n1, n2), facts,
-                                            use_global_props)
-        return logical_state_dict
-
     def get_logical_state(self, infos, filter_preds=True):
         possible_props = ['in_room', 'in_inventory', 'at', 'has_exit']
         obs_text = infos['description'].lower()
