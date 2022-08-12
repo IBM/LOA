@@ -17,7 +17,7 @@ def instantiate(x, instance_list):
 
 def ground_predicate(x, pred_name, facts):
     if pred_name in facts:
-        return [x] in facts[pred_name]
+        return x in facts[pred_name]
     else:
         return False
 
