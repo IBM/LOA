@@ -3,14 +3,14 @@ import pickle
 import random
 
 import numpy as np
-
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from tqdm import tqdm
+
 from amr_parser import (AMRSemParser, get_formatted_obs_text,
                         get_verbnet_preds_from_obslist)
 from logical_twc import DEFALT_TWC_HOME, EPS, Action2Literal, LogicalTWC
-from tqdm import tqdm
 from utils import (combine_cs_facts, get_facts_state,
                    ground_predicate_instantiate,
                    obtain_predicates_logic_vector)
@@ -47,15 +47,15 @@ class LogicalTWCQuantifier(LogicalTWC):
 class LOAAgent:
 
     def __init__(self,
+                 difficulty_level,
                  admissible_verbs,
+                 num_repeats_pre=2,
                  amr_server_ip='localhost',
                  amr_server_port=None,
-                 prune_by_state_change=False,
-                 sem_parser_mode='both'):
-        if admissible_verbs is None:
-            self.admissible_verbs = {}
-        else:
-            self.admissible_verbs = admissible_verbs
+                 sem_parser_mode='both',
+                 ):
+
+        self.difficulty_level = difficulty_level
 
         self.amr_server_ip = amr_server_ip
         self.amr_server_port = amr_server_port
@@ -63,14 +63,20 @@ class LOAAgent:
         self.action2literal = Action2Literal()
         self.buffer = None
         self.weights = None
-        self.is_trained = {v: False for v, _ in self.admissible_verbs.items()}
-        self.prune_by_state_change = prune_by_state_change
         self.steps = 0
         self.train_eps = 0
         self.sem_parser_mode = sem_parser_mode
 
         self.lr = self.wd = self.pi = self.optimizer = self.loss_fn = None
         self.arity_predicate_templates = self.predicate_templates = None
+
+        if admissible_verbs is None:
+            self.admissible_verbs = {}
+            self.update_admissible_verb(num_repeats=num_repeats_pre)
+        else:
+            self.admissible_verbs = admissible_verbs
+
+        self.is_trained = {v: False for v, _ in self.admissible_verbs.items()}
 
     def init_lnn_model(self, pi, lr=0.01, wd=1e-5):
         self.lr = lr
@@ -136,17 +142,14 @@ class LOAAgent:
                         self.weights[k]['neg'] = \
                             self.weights[k]['neg'] + weights[k]['neg']
 
-    def evaluate_env_without_action_verb(self,
-                                         difficulty_level,
-                                         original_episodic_actions,
-                                         original_score,
-                                         action_verb_to_prune,
-                                         save_trajectories=False):
+    def execute_wo_action_verb(self,
+                               difficulty_level,
+                               original_episodic_actions,
+                               original_score,
+                               action_verb_to_prune):
         true_score = 0
         pruned_score = 0
-        trajs = {k: [] for k in original_episodic_actions}
         for k in original_episodic_actions:
-            # Initialize the game here
             env = LogicalTWCQuantifier(difficulty_level,
                                        split='train', max_episode_steps=50,
                                        batch_size=None, game_number=k)
@@ -174,22 +177,14 @@ class LOAAgent:
                 pruned_score += score_pruned
                 game_trajs.append(ep_trajs)
 
-            trajs[k] = game_trajs
             self.train_eps += 1
-
-        if save_trajectories:
-            save_file = \
-                './results/state_action_graph/trajs_{}_prune_{}.pkl'. \
-                format(difficulty_level, action_verb_to_prune)
-            with open(save_file, 'wb') as fp:
-                pickle.dump(trajs, fp)
 
         return true_score, pruned_score
 
-    def obtain_admissible_verb(self, difficulty_level='easy',
-                               max_steps=50, k_subgoal=True,
-                               sub_goal_based_pruning=False,
-                               num_games=5, save_trajs=False, num_repeats=1):
+    def update_admissible_verb(self,
+                               max_steps=50,
+                               num_games=5,
+                               num_repeats=1):
 
         state_change_action = []
         game_wise_action = {k: [] for k in range(num_games)}
@@ -197,7 +192,7 @@ class LOAAgent:
         for _ in range(num_repeats):
             for game_no in range(num_games):
                 logical_env = \
-                    LogicalTWCQuantifier(difficulty_level,
+                    LogicalTWCQuantifier(self.difficulty_level,
                                          split='train', max_episode_steps=50,
                                          batch_size=None, game_number=game_no)
                 obs, infos = logical_env.reset()
@@ -249,35 +244,26 @@ class LOAAgent:
 
         actions_to_remove = []
 
-        if self.prune_by_state_change:
-            for k, v in self.admissible_verbs.items():
-                if k not in state_change_action:
-                    admissible_verbs.pop(k, None)
+        for k, v in self.admissible_verbs.items():
+            if k not in state_change_action:
+                admissible_verbs.pop(k, None)
 
-        if sub_goal_based_pruning:
-            print('Using sub goal pruning, k_subgoal={}'.format(k_subgoal))
-            if k_subgoal != 0:
-                k_subgoal = min(len(admissible_verbs), k_subgoal)
-                candidate_actions_to_evaluate = \
-                    random.sample(list(admissible_verbs.keys()), k_subgoal)
-            else:
-                candidate_actions_to_evaluate = list(admissible_verbs.keys())
+        candidate_actions_to_evaluate = list(admissible_verbs.keys())
 
-            for prune_ac in candidate_actions_to_evaluate:
-                true_score, pruned_score = \
-                    self.evaluate_env_without_action_verb(
-                        difficulty_level,
-                        game_wise_action,
-                        game_wise_score,
-                        action_verb_to_prune=prune_ac,
-                        save_trajectories=save_trajs
-                    )
+        for prune_ac in candidate_actions_to_evaluate:
+            true_score, pruned_score = \
+                self.execute_wo_action_verb(
+                    self.difficulty_level,
+                    game_wise_action,
+                    game_wise_score,
+                    action_verb_to_prune=prune_ac,
+                )
 
-                if pruned_score == true_score and prune_ac != 'None':
-                    actions_to_remove.append(prune_ac)
+            if pruned_score == true_score and prune_ac != 'None':
+                actions_to_remove.append(prune_ac)
 
-            for key in actions_to_remove:
-                admissible_verbs.pop(key, None)
+        for key in actions_to_remove:
+            admissible_verbs.pop(key, None)
 
         self.admissible_verbs = admissible_verbs
         self.is_trained = {v: False for v, _ in self.admissible_verbs.items()}
@@ -428,6 +414,16 @@ class LOAAgent:
                 idx = weights > 0.5
                 merged_x = merged_x[idx]
                 weights = weights[idx]
+
+            # remove_blank_entries
+            idx = merged_x.sum(1).numpy() != 0
+            merged_x = merged_x[idx]
+            weights = weights[idx]
+
+            self.is_trained[key] = True
+
+            print('After pruning {} LNN model with {} positive data'.
+                  format(key, len(merged_x)))
 
             if verbose:
                 print('State - weights combination')
