@@ -2,10 +2,9 @@ import glob
 import os
 from collections import defaultdict
 
-import numpy as np
-
 import gym
 import nltk
+import numpy as np
 import textworld
 import textworld.gym
 from textworld import EnvInfos
@@ -82,13 +81,14 @@ def load_twc_game(difficulty_level,
                   format(twc_path, difficulty_level, split))
 
     if game_no is not None:
-        game_file_names = game_file_names[game_no]
+        game_file_names = sorted(game_file_names)[game_no]
+        print('Loading: ' + game_file_names)
         hash_id = game_file_names.split('-')[-1].split('.')[0]
         tsv_file_name = [x for x in tsv_file_names if hash_id in x]
 
         commonsense_kb = {}
         fp = open(tsv_file_name[0], 'r')
-        while (True):
+        while True:
             line_str = fp.readline()
             vals = line_str.split()
             if not bool(line_str):
