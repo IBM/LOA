@@ -153,14 +153,14 @@ class AMRSemParser:
         if os.path.exists(self.cache_file):
             with open(self.cache_file, 'rb') as fp:
                 self.cache = pickle.load(fp)
-            print('Loaded cache from ', self.cache_file)
+            print('Loaded cache from', self.cache_file, 'len:', len(self.cache))
         else:
             self.cache = {}
 
     def save_cache(self):
         with open(self.cache_file, 'wb') as fp:
             pickle.dump(self.cache, fp)
-        print('Saved cache to ', self.cache_file)
+        print('Saved cache from', self.cache_file, 'len:', len(self.cache))
 
     def propbank_facts(self, ret,
                        no_use_zero_arg=True,
