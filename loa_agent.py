@@ -6,11 +6,10 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from tqdm import tqdm
-
 from amr_parser import (AMRSemParser, get_formatted_obs_text,
                         get_verbnet_preds_from_obslist)
 from logical_twc import DEFALT_TWC_HOME, EPS, Action2Literal, LogicalTWC
+from tqdm import tqdm
 from utils import (combine_cs_facts, get_facts_state,
                    ground_predicate_instantiate,
                    obtain_predicates_logic_vector)
@@ -489,11 +488,15 @@ class LOAAgent:
                 beta, wts = self.pi.models[key].extract_weights()
                 wts = wts.detach().numpy()
                 if np.isnan(wts[0]):
-                    rules[key] = 'True'
+                    rules[key +
+                          ('(x,y)' if self.admissible_verbs[key] == 2
+                           else '(x)')] = 'True'
                 else:
                     learned_pos_wts = \
                         [pred_template[k] for k, x in enumerate(wts) if x > th]
-                    rules[key] = ' ∧ '.join(learned_pos_wts)
+                    rules[key +
+                          ('(x,y)' if self.admissible_verbs[key] == 2
+                           else '(x)')] = ' ∧ '.join(learned_pos_wts)
         return rules
 
     def test_policy(self,
