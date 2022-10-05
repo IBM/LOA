@@ -132,10 +132,10 @@ class AMRSemParser:
         self.cache = {}
         self.load_cache()
 
-    def text2amr(self, text):
+    def text2amr(self, text, force_server=False):
         full_ret = {self.json_key: []}
         for sent in sent_tokenize(text):
-            if sent in self.cache:
+            if not force_server and sent in self.cache:
                 ret = self.cache[sent]
                 full_ret[self.json_key].append(ret)
             else:
