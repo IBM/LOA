@@ -74,6 +74,17 @@ This repository provides code for the following paper, please cite the paper and
 
 ### Applications for LOA
 
+
+- Subhajit Chaudhury, Sarathkrishna Swaminathan, Daiki Kimura, Prithviraj Sen, Keerthiram Murugesan, Rosario Uceda-Sosa, Michiaki Tatsubori, Achille Fokoue, Pavan Kapanipathi, Asim Munawar and Alexander Gray, "[Learning Symbolic Rules over Abstract Meaning Representations for Textual Reinforcement Learning](https://research.ibm.com/publications/learning-symbolic-rules-over-abstract-meaning-representations-for-textual-reinforcement-learning)", ACL 2023.
+
+  <details><summary>Details and bibtex</summary><div>
+
+  Text-based reinforcement learning agents have predominantly been neural network-based models with embeddings-based representation, learning uninterpretable policies that often do not generalize well to unseen games. On the other hand, neuro-symbolic methods, specifically those that leverage an intermediate formal representation, are gaining significant attention in language understanding tasks. This is because of their advantages ranging from inherent interpretability, the lesser requirement of training data, and being generalizable in scenarios with unseen data. Therefore, in this paper, we propose a modular, NEuro-Symbolic Textual Agent (NESTA) that combines a generic semantic parser with a rule induction system to learn abstract interpretable rules as policies. Our experiments on established text-based game benchmarks show that the proposed NESTA method outperforms deep reinforcement learning-based techniques by achieving better generalization to unseen test games and learning from fewer training interactions.
+  
+  ```
+  ```
+  </div></details>
+
 - Daiki Kimura, Masaki Ono, Subhajit Chaudhury, Ryosuke Kohita, Akifumi Wachi, Don Joven Agravante, Michiaki Tatsubori, Asim Munawar, and Alexander Gray, "[Neuro-Symbolic Reinforcement Learning with First-Order Logic](https://aclanthology.org/2021.emnlp-main.283/)", EMNLP 2021.
 
   <details><summary>Details and bibtex</summary><div>
